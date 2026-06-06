@@ -1,3 +1,9 @@
+# ============================================================
+# BIRD DETECTOR ULTRA - PREMIUM UI
+# 182 BIRD SPECIES AI
+# REAL-TIME STYLE FRONTEND
+# ============================================================
+
 import streamlit as st
 import numpy as np
 import librosa
@@ -5,145 +11,256 @@ import librosa.display
 import tensorflow as tf
 import pickle
 import matplotlib.pyplot as plt
+import pandas as pd
+import time
 
 from tensorflow.keras.models import load_model
 
-# =========================================================
+# ============================================================
 # PAGE CONFIG
-# =========================================================
+# ============================================================
 
 st.set_page_config(
-    page_title="Bird Detector Pro",
+    page_title="Bird Detector Ultra",
     page_icon="🐦",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# =========================================================
+# ============================================================
 # CUSTOM CSS
-# =========================================================
+# ============================================================
 
 st.markdown("""
 <style>
 
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+html, body, [class*="css"]  {
+    font-family: 'Poppins', sans-serif;
+}
+
 .stApp {
-    background-color: #0E1117;
+    background: linear-gradient(
+        135deg,
+        #0B0F19,
+        #121826,
+        #1C2333
+    );
     color: white;
 }
 
-h1 {
-    color: #00FFB3;
+/* =========================================================
+TITLE
+========================================================= */
+
+.main-title {
     text-align: center;
-    font-size: 50px;
+    font-size: 65px;
+    font-weight: 700;
+    background: linear-gradient(
+        90deg,
+        #00F5A0,
+        #00D9F5,
+        #7F5AF0
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-top: -30px;
 }
 
-h2, h3 {
-    color: white;
+.subtitle {
+    text-align: center;
+    color: #B0B7C3;
+    font-size: 20px;
+    margin-bottom: 40px;
 }
+
+/* =========================================================
+GLASS CARDS
+========================================================= */
+
+.glass-card {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+
+    border: 1px solid rgba(255,255,255,0.1);
+
+    border-radius: 20px;
+
+    padding: 25px;
+
+    margin-bottom: 20px;
+
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+/* =========================================================
+PREDICTION CARDS
+========================================================= */
+
+.prediction-card {
+
+    background: linear-gradient(
+        135deg,
+        rgba(0,245,160,0.15),
+        rgba(0,217,245,0.15)
+    );
+
+    border-radius: 18px;
+
+    padding: 20px;
+
+    margin-bottom: 18px;
+
+    border: 1px solid rgba(255,255,255,0.08);
+
+    transition: 0.3s;
+}
+
+.prediction-card:hover {
+
+    transform: scale(1.02);
+
+    box-shadow: 0 0 20px rgba(0,245,160,0.2);
+}
+
+/* =========================================================
+METRIC CARDS
+========================================================= */
+
+.metric-card {
+
+    background: rgba(255,255,255,0.05);
+
+    border-radius: 16px;
+
+    padding: 18px;
+
+    text-align: center;
+
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* =========================================================
+SIDEBAR
+========================================================= */
+
+[data-testid="stSidebar"] {
+
+    background: #0F172A;
+
+    border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+/* =========================================================
+BUTTON
+========================================================= */
 
 .stButton>button {
-    background-color: #00FFB3;
+
+    width: 100%;
+
+    background: linear-gradient(
+        90deg,
+        #00F5A0,
+        #00D9F5
+    );
+
     color: black;
-    border-radius: 10px;
+
     border: none;
-    padding: 10px 20px;
+
+    padding: 14px;
+
+    border-radius: 14px;
+
+    font-weight: 700;
+
+    font-size: 16px;
+
+    transition: 0.3s;
 }
 
-.prediction-box {
-    background-color: #1A1D24;
+.stButton>button:hover {
+
+    transform: scale(1.02);
+
+    box-shadow: 0 0 25px rgba(0,245,160,0.3);
+}
+
+/* =========================================================
+UPLOAD BOX
+========================================================= */
+
+[data-testid="stFileUploader"] {
+
+    background: rgba(255,255,255,0.04);
+
+    border-radius: 18px;
+
     padding: 15px;
-    border-radius: 12px;
-    margin-bottom: 10px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# =========================================================
+# ============================================================
 # LOAD MODEL
-# =========================================================
+# ============================================================
 
 @st.cache_resource
-def load_ai_model():
+def load_ai():
 
-    model = load_model("bird_detector_pro.keras")
+    model = load_model(
+        "bird_detector_ultra_v4.keras"
+    )
 
-    with open("bird_detector_pro_encoder.pkl", "rb") as f:
+    with open(
+        "bird_detector_ultra_v4_encoder.pkl",
+        "rb"
+    ) as f:
 
         encoder = pickle.load(f)
 
     return model, encoder
 
-model, encoder = load_ai_model()
+model, encoder = load_ai()
 
-# =========================================================
-# BIRD INFORMATION
-# =========================================================
+# ============================================================
+# BIRD INFO DATABASE
+# ============================================================
 
 bird_info = {
 
     "hoopoe": {
         "name": "Eurasian Hoopoe",
-        "description": "Known for its beautiful crown feathers and unique call.",
-        "habitat": "Woodlands, grasslands, gardens"
+        "emoji": "🟠",
+        "habitat": "Woodlands & Grasslands",
+        "description": "Famous for its majestic crown feathers and unique call."
     },
 
     "commyn": {
         "name": "Common Myna",
-        "description": "Highly vocal urban bird commonly found near humans.",
-        "habitat": "Cities, towns, villages"
+        "emoji": "🟤",
+        "habitat": "Urban Areas",
+        "description": "Highly intelligent and vocal bird commonly found near humans."
     },
 
     "greegr": {
         "name": "Green Bee-eater",
-        "description": "Small colorful bird famous for catching insects mid-air.",
-        "habitat": "Open fields and forests"
+        "emoji": "🟢",
+        "habitat": "Open Fields",
+        "description": "Beautiful green bird known for catching insects mid-flight."
     }
 }
 
-# =========================================================
-# TITLE
-# =========================================================
-
-st.title("🐦 Bird Detector Pro")
-
-st.markdown("""
-### Deep Learning Bird Sound Classification System
-
-Detect bird species using:
-- 🎧 Audio Analysis
-- 📊 Mel Spectrograms
-- 🧠 CNN Deep Learning
-- 🚀 SpecAugment Technology
-""")
-
-# =========================================================
-# SIDEBAR
-# =========================================================
-
-st.sidebar.title("📌 About")
-
-st.sidebar.info("""
-Bird Detector Pro uses a deep convolutional neural network trained on BirdCLEF environmental audio data.
-
-Model Features:
-- 50 Bird Species
-- 84.9% Accuracy
-- Mel Spectrogram Processing
-- SpecAugment Augmentation
-""")
-
-# =========================================================
-# FILE UPLOADER
-# =========================================================
-
-uploaded_file = st.file_uploader(
-    "🎧 Upload Bird Audio File",
-    type=["wav", "mp3", "ogg"]
-)
-
-# =========================================================
+# ============================================================
 # FEATURE EXTRACTION
-# =========================================================
+# ============================================================
+
+N_MELS = 64
+SPEC_WIDTH = 128
 
 def extract_features(audio_file):
 
@@ -155,58 +272,59 @@ def extract_features(audio_file):
     mel_spec = librosa.feature.melspectrogram(
         y=audio,
         sr=sr,
-        n_mels=128
+        n_mels=N_MELS
     )
 
-    mel_spec_db = librosa.power_to_db(
+    mel_spec = librosa.power_to_db(
         mel_spec,
         ref=np.max
     )
 
     # =====================================================
-    # FIX SIZE
+    # FIX WIDTH
     # =====================================================
 
-    if mel_spec_db.shape[1] < 216:
+    if mel_spec.shape[1] < SPEC_WIDTH:
 
-        pad_width = 216 - mel_spec_db.shape[1]
+        pad_width = SPEC_WIDTH - mel_spec.shape[1]
 
-        mel_spec_db = np.pad(
-            mel_spec_db,
+        mel_spec = np.pad(
+            mel_spec,
             pad_width=((0,0),(0,pad_width)),
             mode='constant'
         )
 
     else:
 
-        mel_spec_db = mel_spec_db[:, :216]
+        mel_spec = mel_spec[:, :SPEC_WIDTH]
 
     # =====================================================
     # NORMALIZE
     # =====================================================
 
-    mel_spec_db = mel_spec_db / np.max(np.abs(mel_spec_db))
+    mel_spec = mel_spec / (
+        np.max(np.abs(mel_spec)) + 1e-6
+    )
 
-    # =====================================================
-    # RESHAPE
-    # =====================================================
+    mel_spec = mel_spec[..., np.newaxis]
 
-    mel_spec_db = mel_spec_db[..., np.newaxis]
-
-    mel_spec_db = np.expand_dims(
-        mel_spec_db,
+    mel_spec = np.expand_dims(
+        mel_spec,
         axis=0
     )
 
-    return mel_spec_db, audio, sr
+    return mel_spec, audio, sr
 
-# =========================================================
-# PREDICTION
-# =========================================================
+# ============================================================
+# PREDICTION FUNCTION
+# ============================================================
 
 def predict_bird(features):
 
-    prediction = model.predict(features)[0]
+    prediction = model.predict(
+        features,
+        verbose=0
+    )[0]
 
     top_indices = prediction.argsort()[-5:][::-1]
 
@@ -216,21 +334,124 @@ def predict_bird(features):
 
         bird_name = encoder.inverse_transform([idx])[0]
 
-        confidence = prediction[idx]
+        confidence = float(prediction[idx])
 
-        results.append((bird_name, confidence))
+        results.append(
+            (bird_name, confidence)
+        )
 
     return results
 
-# =========================================================
-# MAIN APP
-# =========================================================
+# ============================================================
+# SIDEBAR
+# ============================================================
+
+st.sidebar.markdown("""
+# 🐦 Bird Detector Ultra
+""")
+
+st.sidebar.markdown("""
+### 🌍 AI Features
+
+✅ 182 Bird Species  
+✅ Residual CNN  
+✅ Attention Mechanisms  
+✅ Spectrogram Intelligence  
+✅ Deep Audio Learning  
+✅ 81.5% Accuracy  
+""")
+
+st.sidebar.markdown("---")
+
+st.sidebar.markdown("""
+### ⚡ Model Stats
+
+- Parameters: 1.47M
+- Audio Duration: 5 sec
+- Spectrograms: Mel Scale
+- Architecture: Residual Attention CNN
+""")
+
+# ============================================================
+# HERO SECTION
+# ============================================================
+
+st.markdown("""
+<div class="main-title">
+🐦 Bird Detector Ultra
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="subtitle">
+Large-Scale Environmental Audio Intelligence System
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# METRICS
+# ============================================================
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+
+    st.markdown("""
+    <div class="metric-card">
+        <h2>182</h2>
+        <p>Bird Species</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+
+    st.markdown("""
+    <div class="metric-card">
+        <h2>81.5%</h2>
+        <p>Accuracy</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+
+    st.markdown("""
+    <div class="metric-card">
+        <h2>24K+</h2>
+        <p>Samples</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col4:
+
+    st.markdown("""
+    <div class="metric-card">
+        <h2>1.47M</h2>
+        <p>Parameters</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ============================================================
+# FILE UPLOAD
+# ============================================================
+
+uploaded_file = st.file_uploader(
+    "🎧 Upload Bird Audio",
+    type=["wav", "mp3", "ogg"]
+)
+
+# ============================================================
+# MAIN PREDICTION
+# ============================================================
 
 if uploaded_file is not None:
 
     st.audio(uploaded_file)
 
-    with st.spinner("🧠 AI is analyzing bird sounds..."):
+    with st.spinner("🧠 AI is listening to the forest..."):
+
+        time.sleep(2)
 
         features, audio, sr = extract_features(
             uploaded_file
@@ -238,20 +459,27 @@ if uploaded_file is not None:
 
         results = predict_bird(features)
 
-    # =====================================================
-    # TOP PREDICTION
-    # =====================================================
-
     top_bird = results[0][0]
+
     top_conf = results[0][1]
 
-    st.success(
-        f"🐦 Predicted Bird: {top_bird}"
-    )
+    # =====================================================
+    # MAIN RESULT
+    # =====================================================
 
-    st.write(
-        f"### Confidence: {top_conf:.2%}"
-    )
+    st.markdown(f"""
+    <div class="glass-card">
+
+    <h1 style="text-align:center;">
+    🐦 {top_bird}
+    </h1>
+
+    <h3 style="text-align:center;color:#00F5A0;">
+    Confidence: {top_conf:.2%}
+    </h3>
+
+    </div>
+    """, unsafe_allow_html=True)
 
     # =====================================================
     # BIRD INFORMATION
@@ -259,52 +487,78 @@ if uploaded_file is not None:
 
     if top_bird in bird_info:
 
-        st.subheader("📖 Bird Information")
+        info = bird_info[top_bird]
 
-        st.write(
-            f"### {bird_info[top_bird]['name']}"
-        )
+        st.markdown(f"""
+        <div class="glass-card">
 
-        st.write(
-            bird_info[top_bird]['description']
-        )
+        <h2>{info['emoji']} {info['name']}</h2>
 
-        st.write(
-            f"**Habitat:** {bird_info[top_bird]['habitat']}"
-        )
+        <p>{info['description']}</p>
+
+        <p><b>Habitat:</b> {info['habitat']}</p>
+
+        </div>
+        """, unsafe_allow_html=True)
 
     # =====================================================
     # TOP 5 PREDICTIONS
     # =====================================================
 
-    st.subheader("🔍 Top 5 Predictions")
+    st.markdown("""
+    ## 🔍 Top Predictions
+    """)
 
     for bird, conf in results:
 
-        st.markdown(
-            f"""
-            <div class="prediction-box">
-                <h3>🐦 {bird}</h3>
-                <p>Confidence: {conf:.2%}</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        st.markdown(f"""
+        <div class="prediction-card">
 
-        st.progress(float(conf))
+        <h3>🐦 {bird}</h3>
+
+        <p>Confidence: {conf:.2%}</p>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.progress(conf)
 
     # =====================================================
-    # SPECTROGRAM
+    # CHART
     # =====================================================
 
-    st.subheader("📊 Mel Spectrogram")
+    st.markdown("""
+    ## 📊 Prediction Confidence
+    """)
 
-    fig, ax = plt.subplots(figsize=(12,5))
+    chart_data = pd.DataFrame({
+
+        "Bird": [x[0] for x in results],
+
+        "Confidence": [x[1] for x in results]
+
+    })
+
+    st.bar_chart(
+        chart_data.set_index("Bird")
+    )
+
+    # =====================================================
+    # MEL SPECTROGRAM
+    # =====================================================
+
+    st.markdown("""
+    ## 🎼 Mel Spectrogram
+    """)
+
+    fig, ax = plt.subplots(
+        figsize=(12,5)
+    )
 
     mel = librosa.feature.melspectrogram(
         y=audio,
         sr=sr,
-        n_mels=128
+        n_mels=64
     )
 
     mel_db = librosa.power_to_db(
@@ -325,12 +579,16 @@ if uploaded_file is not None:
     st.pyplot(fig)
 
     # =====================================================
-    # RAW AUDIO WAVEFORM
+    # AUDIO WAVEFORM
     # =====================================================
 
-    st.subheader("📈 Audio Waveform")
+    st.markdown("""
+    ## 📈 Audio Waveform
+    """)
 
-    fig2, ax2 = plt.subplots(figsize=(12,3))
+    fig2, ax2 = plt.subplots(
+        figsize=(12,3)
+    )
 
     librosa.display.waveshow(
         audio,
@@ -340,14 +598,20 @@ if uploaded_file is not None:
 
     st.pyplot(fig2)
 
-# =========================================================
+# ============================================================
 # FOOTER
-# =========================================================
+# ============================================================
 
-st.markdown("---")
+st.markdown("<br><br>", unsafe_allow_html=True)
 
 st.markdown("""
 <center>
-Made with ❤️ using Deep Learning + Streamlit
+
+<h3>🌿 Built with Deep Learning & Bioacoustics</h3>
+
+<p>
+Residual CNN • Attention Mechanisms • Spectrogram Intelligence
+</p>
+
 </center>
 """, unsafe_allow_html=True)
