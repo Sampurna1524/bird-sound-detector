@@ -13,8 +13,10 @@ import pickle
 import matplotlib.pyplot as plt
 import pandas as pd
 import time
+from io import BytesIO
 
 from tensorflow.keras.models import load_model
+from audio_recorder_streamlit import audio_recorder
 
 # ============================================================
 # PAGE CONFIG
@@ -234,25 +236,56 @@ model, encoder = load_ai()
 bird_info = {
 
     "hoopoe": {
-        "name": "Eurasian Hoopoe",
-        "emoji": "🟠",
-        "habitat": "Woodlands & Grasslands",
-        "description": "Famous for its majestic crown feathers and unique call."
+
+        "common_name": "Eurasian Hoopoe",
+
+        "scientific_name": "Upupa epops",
+
+        "habitat": "Woodlands, grasslands, farmlands",
+
+        "diet": "Insects, larvae, worms",
+
+        "status": "Least Concern",
+
+        "fun_fact": "Its crown opens like a royal fan when excited.",
+
+        "image": "https://upload.wikimedia.org/wikipedia/commons/3/32/Hoopoe_%28Upupa_epops%29.jpg"
     },
 
     "commyn": {
-        "name": "Common Myna",
-        "emoji": "🟤",
-        "habitat": "Urban Areas",
-        "description": "Highly intelligent and vocal bird commonly found near humans."
+
+        "common_name": "Common Myna",
+
+        "scientific_name": "Acridotheres tristis",
+
+        "habitat": "Urban areas, villages, forests",
+
+        "diet": "Fruits, insects, food scraps",
+
+        "status": "Least Concern",
+
+        "fun_fact": "Can mimic sounds and human speech.",
+
+        "image": "https://upload.wikimedia.org/wikipedia/commons/0/0a/Common_Myna.jpg"
     },
 
     "greegr": {
-        "name": "Green Bee-eater",
-        "emoji": "🟢",
-        "habitat": "Open Fields",
-        "description": "Beautiful green bird known for catching insects mid-flight."
+
+        "common_name": "Green Bee-eater",
+
+        "scientific_name": "Merops orientalis",
+
+        "habitat": "Open grasslands and fields",
+
+        "diet": "Bees, insects, dragonflies",
+
+        "status": "Least Concern",
+
+        "fun_fact": "Catches insects mid-air with incredible precision.",
+
+        "image": "https://upload.wikimedia.org/wikipedia/commons/9/9d/Green_bee-eater_%28Merops_orientalis%29.jpg"
     }
+
 }
 
 # ============================================================
@@ -262,22 +295,56 @@ bird_info = {
 N_MELS = 64
 SPEC_WIDTH = 128
 
-def extract_features(audio_file):
+def extract_features(audio_source):
+
+    # =====================================================
+    # HANDLE STREAMLIT UPLOADS / MIC AUDIO
+    # =====================================================
+
+    if isinstance(audio_source, bytes):
+
+        audio_file = BytesIO(audio_source)
+
+    else:
+
+        audio_file = audio_source
+
+    # =====================================================
+    # LOAD AUDIO
+    # =====================================================
 
     audio, sr = librosa.load(
+
         audio_file,
+
+        sr=None,
+
+        mono=True,
+
         duration=5
+
     )
 
+    # =====================================================
+    # MEL SPECTROGRAM
+    # =====================================================
+
     mel_spec = librosa.feature.melspectrogram(
+
         y=audio,
+
         sr=sr,
+
         n_mels=N_MELS
+
     )
 
     mel_spec = librosa.power_to_db(
+
         mel_spec,
+
         ref=np.max
+
     )
 
     # =====================================================
@@ -289,9 +356,13 @@ def extract_features(audio_file):
         pad_width = SPEC_WIDTH - mel_spec.shape[1]
 
         mel_spec = np.pad(
+
             mel_spec,
+
             pad_width=((0,0),(0,pad_width)),
+
             mode='constant'
+
         )
 
     else:
@@ -303,14 +374,19 @@ def extract_features(audio_file):
     # =====================================================
 
     mel_spec = mel_spec / (
+
         np.max(np.abs(mel_spec)) + 1e-6
+
     )
 
     mel_spec = mel_spec[..., np.newaxis]
 
     mel_spec = np.expand_dims(
+
         mel_spec,
+
         axis=0
+
     )
 
     return mel_spec, audio, sr
@@ -442,12 +518,45 @@ uploaded_file = st.file_uploader(
 )
 
 # ============================================================
+# REAL-TIME MICROPHONE
+# ============================================================
+
+st.markdown("""
+## 🎤 Real-Time Bird Listening
+""")
+
+audio_bytes = audio_recorder(
+
+    text="🎙️ Click To Record",
+
+    recording_color="#FF4B4B",
+
+    neutral_color="#00F5A0",
+
+    icon_name="microphone",
+
+    icon_size="2x"
+
+)
+
+# ============================================================
+# HANDLE MIC AUDIO
+# ============================================================
+
+if audio_bytes:
+
+    st.success("✅ Recording Captured!")
+
+    st.audio(audio_bytes)
+
+    uploaded_file = BytesIO(audio_bytes)
+
+# ============================================================
 # MAIN PREDICTION
 # ============================================================
 
-if uploaded_file is not None:
+if uploaded_file:
 
-    st.audio(uploaded_file)
 
     with st.spinner("🧠 AI is listening to the forest..."):
 
@@ -485,118 +594,169 @@ if uploaded_file is not None:
     # BIRD INFORMATION
     # =====================================================
 
+    # =====================================================
+    # ADVANCED BIRD INFO
+    # =====================================================
+
     if top_bird in bird_info:
 
         info = bird_info[top_bird]
 
-        st.markdown(f"""
-        <div class="glass-card">
+        st.markdown("""
+        ## 🦜 Bird Information
+        """)
 
-        <h2>{info['emoji']} {info['name']}</h2>
+        col1, col2 = st.columns([1,2])
 
-        <p>{info['description']}</p>
+        # =================================================
+        # IMAGE
+        # =================================================
 
-        <p><b>Habitat:</b> {info['habitat']}</p>
+        with col1:
 
-        </div>
-        """, unsafe_allow_html=True)
+            st.image(
+                info["image"],
+                use_container_width=True
+            )
 
-    # =====================================================
-    # TOP 5 PREDICTIONS
-    # =====================================================
+        # =================================================
+        # DETAILS
+        # =================================================
 
-    st.markdown("""
-    ## 🔍 Top Predictions
-    """)
+        with col2:
 
-    for bird, conf in results:
+            st.markdown(f"""
+            <div class="glass-card">
 
-        st.markdown(f"""
-        <div class="prediction-card">
+            <h1>
+            🐦 {info['common_name']}
+            </h1>
 
-        <h3>🐦 {bird}</h3>
+            <h4 style="color:#A0AEC0;">
+            {info['scientific_name']}
+            </h4>
 
-        <p>Confidence: {conf:.2%}</p>
+            <hr>
 
-        </div>
-        """, unsafe_allow_html=True)
+            <p>
+            <b>🌍 Habitat:</b><br>
+            {info['habitat']}
+            </p>
 
-        st.progress(conf)
+            <p>
+            <b>🍽️ Diet:</b><br>
+            {info['diet']}
+            </p>
 
-    # =====================================================
-    # CHART
-    # =====================================================
+            <p>
+            <b>🛡️ Conservation Status:</b><br>
+            {info['status']}
+            </p>
 
-    st.markdown("""
-    ## 📊 Prediction Confidence
-    """)
+            <p>
+            <b>✨ Fun Fact:</b><br>
+            {info['fun_fact']}
+            </p>
 
-    chart_data = pd.DataFrame({
+            </div>
+            """, unsafe_allow_html=True)
 
-        "Bird": [x[0] for x in results],
+        # =====================================================
+        # TOP 5 PREDICTIONS
+        # =====================================================
 
-        "Confidence": [x[1] for x in results]
+        st.markdown("""
+        ## 🔍 Top Predictions
+        """)
 
-    })
+        for bird, conf in results:
 
-    st.bar_chart(
-        chart_data.set_index("Bird")
-    )
+            st.markdown(f"""
+            <div class="prediction-card">
 
-    # =====================================================
-    # MEL SPECTROGRAM
-    # =====================================================
+            <h3>🐦 {bird}</h3>
 
-    st.markdown("""
-    ## 🎼 Mel Spectrogram
-    """)
+            <p>Confidence: {conf:.2%}</p>
 
-    fig, ax = plt.subplots(
-        figsize=(12,5)
-    )
+            </div>
+            """, unsafe_allow_html=True)
 
-    mel = librosa.feature.melspectrogram(
-        y=audio,
-        sr=sr,
-        n_mels=64
-    )
+            st.progress(conf)
 
-    mel_db = librosa.power_to_db(
-        mel,
-        ref=np.max
-    )
+        # =====================================================
+        # CHART
+        # =====================================================
 
-    img = librosa.display.specshow(
-        mel_db,
-        x_axis='time',
-        y_axis='mel',
-        sr=sr,
-        ax=ax
-    )
+        st.markdown("""
+        ## 📊 Prediction Confidence
+        """)
 
-    plt.colorbar(img, ax=ax)
+        chart_data = pd.DataFrame({
 
-    st.pyplot(fig)
+            "Bird": [x[0] for x in results],
 
-    # =====================================================
-    # AUDIO WAVEFORM
-    # =====================================================
+            "Confidence": [x[1] for x in results]
 
-    st.markdown("""
-    ## 📈 Audio Waveform
-    """)
+        })
 
-    fig2, ax2 = plt.subplots(
-        figsize=(12,3)
-    )
+        st.bar_chart(
+            chart_data.set_index("Bird")
+        )
 
-    librosa.display.waveshow(
-        audio,
-        sr=sr,
-        ax=ax2
-    )
+        # =====================================================
+        # MEL SPECTROGRAM
+        # =====================================================
 
-    st.pyplot(fig2)
+        st.markdown("""
+        ## 🎼 Mel Spectrogram
+        """)
+
+        fig, ax = plt.subplots(
+            figsize=(12,5)
+        )
+
+        mel = librosa.feature.melspectrogram(
+            y=audio,
+            sr=sr,
+            n_mels=64
+        )
+
+        mel_db = librosa.power_to_db(
+            mel,
+            ref=np.max
+        )
+
+        img = librosa.display.specshow(
+            mel_db,
+            x_axis='time',
+            y_axis='mel',
+            sr=sr,
+            ax=ax
+        )
+
+        plt.colorbar(img, ax=ax)
+
+        st.pyplot(fig)
+
+        # =====================================================
+        # AUDIO WAVEFORM
+        # =====================================================
+
+        st.markdown("""
+        ## 📈 Audio Waveform
+        """)
+
+        fig2, ax2 = plt.subplots(
+            figsize=(12,3)
+        )
+
+        librosa.display.waveshow(
+            audio,
+            sr=sr,
+            ax=ax2
+        )
+
+        st.pyplot(fig2)
 
 # ============================================================
 # FOOTER
