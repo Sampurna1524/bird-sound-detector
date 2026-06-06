@@ -13,9 +13,9 @@ from tensorflow.keras.models import load_model
 # =========================================================
 
 st.set_page_config(
-    page_title="Bird Sound Detector AI",
+    page_title="Bird Detector Pro",
     page_icon="🐦",
-    layout="centered"
+    layout="wide"
 )
 
 # =========================================================
@@ -25,22 +25,34 @@ st.set_page_config(
 st.markdown("""
 <style>
 
-.main {
-    background-color: #0E1117;
-    color: white;
-}
-
 .stApp {
     background-color: #0E1117;
+    color: white;
 }
 
 h1 {
     color: #00FFB3;
     text-align: center;
+    font-size: 50px;
 }
 
 h2, h3 {
     color: white;
+}
+
+.stButton>button {
+    background-color: #00FFB3;
+    color: black;
+    border-radius: 10px;
+    border: none;
+    padding: 10px 20px;
+}
+
+.prediction-box {
+    background-color: #1A1D24;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 10px;
 }
 
 </style>
@@ -50,24 +62,74 @@ h2, h3 {
 # LOAD MODEL
 # =========================================================
 
-model = load_model("advanced_bird_classifier.keras")
+@st.cache_resource
+def load_ai_model():
+
+    model = load_model("bird_detector_pro.keras")
+
+    with open("bird_detector_pro_encoder.pkl", "rb") as f:
+
+        encoder = pickle.load(f)
+
+    return model, encoder
+
+model, encoder = load_ai_model()
 
 # =========================================================
-# LOAD LABEL ENCODER
+# BIRD INFORMATION
 # =========================================================
 
-with open("advanced_label_encoder.pkl", "rb") as f:
-    encoder = pickle.load(f)
+bird_info = {
+
+    "hoopoe": {
+        "name": "Eurasian Hoopoe",
+        "description": "Known for its beautiful crown feathers and unique call.",
+        "habitat": "Woodlands, grasslands, gardens"
+    },
+
+    "commyn": {
+        "name": "Common Myna",
+        "description": "Highly vocal urban bird commonly found near humans.",
+        "habitat": "Cities, towns, villages"
+    },
+
+    "greegr": {
+        "name": "Green Bee-eater",
+        "description": "Small colorful bird famous for catching insects mid-air.",
+        "habitat": "Open fields and forests"
+    }
+}
 
 # =========================================================
 # TITLE
 # =========================================================
 
-st.title("🐦 Bird Sound Detector AI")
+st.title("🐦 Bird Detector Pro")
 
-st.write("""
-Deep Learning based Bird Sound Classification System  
-using Mel Spectrograms + SpecAugment + CNN
+st.markdown("""
+### Deep Learning Bird Sound Classification System
+
+Detect bird species using:
+- 🎧 Audio Analysis
+- 📊 Mel Spectrograms
+- 🧠 CNN Deep Learning
+- 🚀 SpecAugment Technology
+""")
+
+# =========================================================
+# SIDEBAR
+# =========================================================
+
+st.sidebar.title("📌 About")
+
+st.sidebar.info("""
+Bird Detector Pro uses a deep convolutional neural network trained on BirdCLEF environmental audio data.
+
+Model Features:
+- 50 Bird Species
+- 84.9% Accuracy
+- Mel Spectrogram Processing
+- SpecAugment Augmentation
 """)
 
 # =========================================================
@@ -75,12 +137,12 @@ using Mel Spectrograms + SpecAugment + CNN
 # =========================================================
 
 uploaded_file = st.file_uploader(
-    "🎧 Upload Bird Audio",
+    "🎧 Upload Bird Audio File",
     type=["wav", "mp3", "ogg"]
 )
 
 # =========================================================
-# CREATE MEL SPECTROGRAM
+# FEATURE EXTRACTION
 # =========================================================
 
 def extract_features(audio_file):
@@ -101,7 +163,10 @@ def extract_features(audio_file):
         ref=np.max
     )
 
+    # =====================================================
     # FIX SIZE
+    # =====================================================
+
     if mel_spec_db.shape[1] < 216:
 
         pad_width = 216 - mel_spec_db.shape[1]
@@ -113,12 +178,19 @@ def extract_features(audio_file):
         )
 
     else:
+
         mel_spec_db = mel_spec_db[:, :216]
 
+    # =====================================================
     # NORMALIZE
+    # =====================================================
+
     mel_spec_db = mel_spec_db / np.max(np.abs(mel_spec_db))
 
+    # =====================================================
     # RESHAPE
+    # =====================================================
+
     mel_spec_db = mel_spec_db[..., np.newaxis]
 
     mel_spec_db = np.expand_dims(
@@ -136,7 +208,7 @@ def predict_bird(features):
 
     prediction = model.predict(features)[0]
 
-    top_indices = prediction.argsort()[-3:][::-1]
+    top_indices = prediction.argsort()[-5:][::-1]
 
     results = []
 
@@ -158,7 +230,7 @@ if uploaded_file is not None:
 
     st.audio(uploaded_file)
 
-    with st.spinner("🧠 Analyzing Bird Sound..."):
+    with st.spinner("🧠 AI is analyzing bird sounds..."):
 
         features, audio, sr = extract_features(
             uploaded_file
@@ -178,30 +250,56 @@ if uploaded_file is not None:
     )
 
     st.write(
-        f"Confidence: {top_conf:.2%}"
+        f"### Confidence: {top_conf:.2%}"
     )
 
     # =====================================================
-    # TOP 3 PREDICTIONS
+    # BIRD INFORMATION
     # =====================================================
 
-    st.subheader("🔍 Top 3 Predictions")
+    if top_bird in bird_info:
+
+        st.subheader("📖 Bird Information")
+
+        st.write(
+            f"### {bird_info[top_bird]['name']}"
+        )
+
+        st.write(
+            bird_info[top_bird]['description']
+        )
+
+        st.write(
+            f"**Habitat:** {bird_info[top_bird]['habitat']}"
+        )
+
+    # =====================================================
+    # TOP 5 PREDICTIONS
+    # =====================================================
+
+    st.subheader("🔍 Top 5 Predictions")
 
     for bird, conf in results:
 
-        st.write(f"### {bird}")
+        st.markdown(
+            f"""
+            <div class="prediction-box">
+                <h3>🐦 {bird}</h3>
+                <p>Confidence: {conf:.2%}</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         st.progress(float(conf))
 
-        st.write(f"{conf:.2%}")
-
     # =====================================================
-    # SPECTROGRAM VISUALIZATION
+    # SPECTROGRAM
     # =====================================================
 
     st.subheader("📊 Mel Spectrogram")
 
-    fig, ax = plt.subplots(figsize=(10,4))
+    fig, ax = plt.subplots(figsize=(12,5))
 
     mel = librosa.feature.melspectrogram(
         y=audio,
@@ -225,3 +323,31 @@ if uploaded_file is not None:
     plt.colorbar(img, ax=ax)
 
     st.pyplot(fig)
+
+    # =====================================================
+    # RAW AUDIO WAVEFORM
+    # =====================================================
+
+    st.subheader("📈 Audio Waveform")
+
+    fig2, ax2 = plt.subplots(figsize=(12,3))
+
+    librosa.display.waveshow(
+        audio,
+        sr=sr,
+        ax=ax2
+    )
+
+    st.pyplot(fig2)
+
+# =========================================================
+# FOOTER
+# =========================================================
+
+st.markdown("---")
+
+st.markdown("""
+<center>
+Made with ❤️ using Deep Learning + Streamlit
+</center>
+""", unsafe_allow_html=True)
