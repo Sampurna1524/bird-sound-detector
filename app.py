@@ -1,111 +1,227 @@
 import streamlit as st
 import numpy as np
 import librosa
+import librosa.display
 import tensorflow as tf
 import pickle
+import matplotlib.pyplot as plt
 
 from tensorflow.keras.models import load_model
 
-# ============================================
+# =========================================================
+# PAGE CONFIG
+# =========================================================
+
+st.set_page_config(
+    page_title="Bird Sound Detector AI",
+    page_icon="🐦",
+    layout="centered"
+)
+
+# =========================================================
+# CUSTOM CSS
+# =========================================================
+
+st.markdown("""
+<style>
+
+.main {
+    background-color: #0E1117;
+    color: white;
+}
+
+.stApp {
+    background-color: #0E1117;
+}
+
+h1 {
+    color: #00FFB3;
+    text-align: center;
+}
+
+h2, h3 {
+    color: white;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================================
 # LOAD MODEL
-# ============================================
+# =========================================================
 
-model = load_model("bird_sound_classifier.h5")
+model = load_model("advanced_bird_classifier.keras")
 
+# =========================================================
 # LOAD LABEL ENCODER
-with open("label_encoder.pkl", "rb") as f:
+# =========================================================
+
+with open("advanced_label_encoder.pkl", "rb") as f:
     encoder = pickle.load(f)
 
-# ============================================
-# PAGE TITLE
-# ============================================
+# =========================================================
+# TITLE
+# =========================================================
 
 st.title("🐦 Bird Sound Detector AI")
 
-st.write(
-    "Upload a bird sound audio file and the AI will predict the bird species."
-)
+st.write("""
+Deep Learning based Bird Sound Classification System  
+using Mel Spectrograms + SpecAugment + CNN
+""")
 
-# ============================================
+# =========================================================
 # FILE UPLOADER
-# ============================================
+# =========================================================
 
 uploaded_file = st.file_uploader(
-    "Upload Bird Audio",
+    "🎧 Upload Bird Audio",
     type=["wav", "mp3", "ogg"]
 )
 
-# ============================================
-# PREDICTION FUNCTION
-# ============================================
+# =========================================================
+# CREATE MEL SPECTROGRAM
+# =========================================================
 
-def predict_bird(audio_file):
+def extract_features(audio_file):
 
-    # LOAD AUDIO
     audio, sr = librosa.load(
         audio_file,
         duration=5
     )
 
-    # EXTRACT MFCC
-    mfcc = librosa.feature.mfcc(
+    mel_spec = librosa.feature.melspectrogram(
         y=audio,
         sr=sr,
-        n_mfcc=40
+        n_mels=128
+    )
+
+    mel_spec_db = librosa.power_to_db(
+        mel_spec,
+        ref=np.max
     )
 
     # FIX SIZE
-    if mfcc.shape[1] < 216:
+    if mel_spec_db.shape[1] < 216:
 
-        pad_width = 216 - mfcc.shape[1]
+        pad_width = 216 - mel_spec_db.shape[1]
 
-        mfcc = np.pad(
-            mfcc,
+        mel_spec_db = np.pad(
+            mel_spec_db,
             pad_width=((0,0),(0,pad_width)),
             mode='constant'
         )
 
     else:
-        mfcc = mfcc[:, :216]
+        mel_spec_db = mel_spec_db[:, :216]
 
     # NORMALIZE
-    mfcc = mfcc / np.max(mfcc)
+    mel_spec_db = mel_spec_db / np.max(np.abs(mel_spec_db))
 
     # RESHAPE
-    mfcc = mfcc[..., np.newaxis]
+    mel_spec_db = mel_spec_db[..., np.newaxis]
 
-    # ADD BATCH DIMENSION
-    mfcc = np.expand_dims(mfcc, axis=0)
+    mel_spec_db = np.expand_dims(
+        mel_spec_db,
+        axis=0
+    )
 
-    # PREDICT
-    prediction = model.predict(mfcc)
+    return mel_spec_db, audio, sr
 
-    predicted_index = np.argmax(prediction)
+# =========================================================
+# PREDICTION
+# =========================================================
 
-    bird_name = encoder.inverse_transform(
-        [predicted_index]
-    )[0]
+def predict_bird(features):
 
-    confidence = np.max(prediction)
+    prediction = model.predict(features)[0]
 
-    return bird_name, confidence
+    top_indices = prediction.argsort()[-3:][::-1]
 
-# ============================================
-# RUN PREDICTION
-# ============================================
+    results = []
+
+    for idx in top_indices:
+
+        bird_name = encoder.inverse_transform([idx])[0]
+
+        confidence = prediction[idx]
+
+        results.append((bird_name, confidence))
+
+    return results
+
+# =========================================================
+# MAIN APP
+# =========================================================
 
 if uploaded_file is not None:
 
     st.audio(uploaded_file)
 
-    with st.spinner("Analyzing Bird Sound..."):
+    with st.spinner("🧠 Analyzing Bird Sound..."):
 
-        bird_name, confidence = predict_bird(
+        features, audio, sr = extract_features(
             uploaded_file
         )
 
-    st.success(f"Predicted Bird: {bird_name}")
+        results = predict_bird(features)
+
+    # =====================================================
+    # TOP PREDICTION
+    # =====================================================
+
+    top_bird = results[0][0]
+    top_conf = results[0][1]
+
+    st.success(
+        f"🐦 Predicted Bird: {top_bird}"
+    )
 
     st.write(
-        f"Confidence: {confidence:.2f}"
+        f"Confidence: {top_conf:.2%}"
     )
+
+    # =====================================================
+    # TOP 3 PREDICTIONS
+    # =====================================================
+
+    st.subheader("🔍 Top 3 Predictions")
+
+    for bird, conf in results:
+
+        st.write(f"### {bird}")
+
+        st.progress(float(conf))
+
+        st.write(f"{conf:.2%}")
+
+    # =====================================================
+    # SPECTROGRAM VISUALIZATION
+    # =====================================================
+
+    st.subheader("📊 Mel Spectrogram")
+
+    fig, ax = plt.subplots(figsize=(10,4))
+
+    mel = librosa.feature.melspectrogram(
+        y=audio,
+        sr=sr,
+        n_mels=128
+    )
+
+    mel_db = librosa.power_to_db(
+        mel,
+        ref=np.max
+    )
+
+    img = librosa.display.specshow(
+        mel_db,
+        x_axis='time',
+        y_axis='mel',
+        sr=sr,
+        ax=ax
+    )
+
+    plt.colorbar(img, ax=ax)
+
+    st.pyplot(fig)
