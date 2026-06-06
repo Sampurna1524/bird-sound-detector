@@ -1495,17 +1495,35 @@ audio_bytes = audio_recorder(
 
 if audio_bytes:
 
+    st.session_state["mic_audio"] = audio_bytes
+
+# ============================================================
+# SHOW RECORDED AUDIO
+# ============================================================
+
+if "mic_audio" in st.session_state:
+
     st.success("✅ Recording Captured!")
 
-    st.audio(audio_bytes)
+    st.audio(st.session_state["mic_audio"])
 
-    uploaded_file = BytesIO(audio_bytes)
+    # ==============================================
+    # MANUAL PREDICTION BUTTON
+    # ==============================================
+
+    if st.button("🧠 Predict Bird From Recording"):
+
+        uploaded_file = BytesIO(
+
+            st.session_state["mic_audio"]
+
+        )
 
 # ============================================================
 # MAIN PREDICTION
 # ============================================================
 
-if uploaded_file:
+if uploaded_file is not None:
 
 
     with st.spinner("🧠 AI is listening to the forest..."):
